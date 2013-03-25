@@ -25,7 +25,7 @@
 """
 
 import sys
-from threading import RLock, Condition, Thread
+from threading import RLock, Lock, Condition, Thread
 
 __all__ = (
     'LRUDict', 'AutoLRUCache', 'CacheLoadError', 'CacheAbandonedError',
@@ -823,7 +823,7 @@ class AutoLRUCache(object):
 
     def __init__(self, loader, capacity=1024):
         super(AutoLRUCache, self).__init__()
-        self.__lock = RLock()
+        self.__lock = Lock()
         self.__cache = LRUDict(capacity)
         self.__loader = loader
         self.__loading = dict()
@@ -1011,7 +1011,7 @@ class DecayingLRUCache(object):
         """Initialize a new instance
         """
 
-        super(CarefulLRUCache, self).__init__()
+        super(DecayingLRUCache, self).__init__()
         self.__lock = Lock()
         self.__cache = LRUDict(capacity)
         self.__loader = loader

@@ -254,8 +254,96 @@ same key value (though any number of concurrent threads might be busy loading
 the resources associated with different keys).
 
 
+Caching and stale entries
+==========================
+
+There is another `AutoLRUCache`-like class provided by the LRU module,
+which gives more control over timing out of entries than `AutoLRUCache` does.
+
+
+    >>> from darts.lib.utils.lru import DecayingLRUCache
+    >>> current_time = 0
+    >>> def tick():
+    ...     global current_time
+    ...     current_time += 1
+
+Here, we defined a simple "clock". We could have used the system clock,
+but roling our own here gives us more control over the notion of "time".
+Now, let's define a simple cache entry:
+
+    >>> from collections import namedtuple
+    >>> Entry = namedtuple("Entry", "timestamp payload")
+    >>> def make_entry(payload):
+    ...     return Entry(current_time, payload)
+
+and a loader function
+
+    >>> def load(full_key):
+    ...     print "Loading", full_key
+    ...     return make_entry(u"Entry for %r" % (full_key,))
+
+For the following parts, we consider an entry to be "too old", if it has
+been created more then two "ticks" ago:
+
+    >>> def is_still_current(entry):
+    ...    return current_time - entry.timestamp <= 2
+
+Finally, we create another cache thingy
+
+    >>> cache = DecayingLRUCache(load, tester=is_still_current, capacity=3)
+
+The `DecayingLRUCache` shows much of the same behaviour of the `AutoLRUCache`,
+namely:
+
+    >>> cache.load(1)
+    Loading 1
+    Entry(timestamp=0, payload=u'Entry for 1')
+    >>> cache.load(2)
+    Loading 2
+    Entry(timestamp=0, payload=u'Entry for 2')
+    >>> cache.load(3)
+    Loading 3
+    Entry(timestamp=0, payload=u'Entry for 3')
+    >>> cache.load(4)
+    Loading 4
+    Entry(timestamp=0, payload=u'Entry for 4')
+    >>> cache.load(1)
+    Loading 1
+    Entry(timestamp=0, payload=u'Entry for 1')
+    
+The entry with key `1` had to be reloaded, since the cache has a capacity of
+3, and the old entry for `1` was evicted when the entry for `4` was loaded
+and we needed to make room.
+
+    >>> cache.load(3)
+    Entry(timestamp=0, payload=u'Entry for 3')
+
+Now, let's advance time
+
+    >>> tick()
+    >>> cache.load(3)
+    Entry(timestamp=0, payload=u'Entry for 3')
+
+The entry is still available. 
+
+    >>> tick()
+    >>> cache.load(3)
+    Entry(timestamp=0, payload=u'Entry for 3')
+    >>> tick()
+    >>> cache.load(3)
+    Loading 3
+    Entry(timestamp=3, payload=u'Entry for 3')
+
+Note, that eviction is still based on LRU, not on the age test. 
+
+
 Change Log
 ==========
+
+Version 0.4
+------------
+
+Added class `DecayingLRUCache` 
 
 Version 0.3
 ------------
