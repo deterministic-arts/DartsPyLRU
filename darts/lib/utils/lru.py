@@ -29,7 +29,7 @@ from threading import RLock, Condition, Thread
 
 __all__ = (
     'LRUDict', 'AutoLRUCache', 'CacheLoadError', 'CacheAbandonedError',
-    'CachingError', 'SynchronizedLRUDict',
+    'CachingError', 'SynchronizedLRUDict', 'DecayingLRUCache',
 )
 
 def log():
@@ -987,6 +987,13 @@ class DecayingLRUCache(object):
 
       Note, that eviction is *not* in any way controlled by
       the `tester` function, but by access order only!
+
+    Note, that unlike `AutoLRUCache`, this class does not
+    consider a `None` result from the `loader` function to be
+    special in any way. It is up to the `tester` function to
+    decide, whether the entry is "good" (i.e., should be 
+    reported back to the application) or not (i.e., must be
+    reloaded upon access).
     """
 
     __slots__ = (
@@ -1002,7 +1009,6 @@ class DecayingLRUCache(object):
     def __init__(self, loader, tester=good, key=identity, capacity=1024):
 
         """Initialize a new instance
-
         """
 
         super(CarefulLRUCache, self).__init__()
