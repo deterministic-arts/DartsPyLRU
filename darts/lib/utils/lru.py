@@ -942,8 +942,172 @@ class AutoLRUCache(object):
                 return default
             else:
                 return value
-        
 
-# TODO: The above class can greatly be simplified, if Twisted is
-# available and used. Provide a separate implementation using Twisted
-# and its Deferreds.
+
+def identity(value):
+    return value
+
+def good(value):
+    return True
+
+
+class DecayingLRUCache(object):
+
+    """Auto-LRU cache with support for stale entry detection
+
+    This class implements a variant of `AutoLRUCache`, which
+    also supports the detection of entries, that are too old
+    and need to be reloaded even if they are are present.
+
+    The client application needs to provide the following
+    parameters:
+
+    - `loader`
+      A callable, which is applied to a key value in order
+      to load the associated object. This must be a function
+      with the signature `lambda key: ...`
+
+    - `tester`
+      Is applied to a cached element before that is handed
+      out to the caller; if this function returns false, the
+      cached element is considered "too old" and dropped from
+      the cache. 
+
+    - `key`
+      A callable, which is applied to a key value in order 
+      to produce a properly hashable value from it. The 
+      default key extraction function is `identity`, i.e.,
+      we use the supplied key value unchanged.
+
+    - `capacity`
+      Maximum number of elements in kept in the LRU cache. The
+      cache starts evicting elements, which have not been
+      recently accessed, if the number of preserved elements
+      reaches this limit.
+
+      Note, that eviction is *not* in any way controlled by
+      the `tester` function, but by access order only!
+    """
+
+    __slots__ = (
+        '__weakref__',
+        '_DecayingLRUCache__lock',
+        '_DecayingLRUCache__cache',
+        '_DecayingLRUCache__loader',
+        '_DecayingLRUCache__loading',
+        '_DecayingLRUCache__tester',
+        '_DecayingLRUCache__key',
+    )
+
+    def __init__(self, loader, tester=good, key=identity, capacity=1024):
+
+        """Initialize a new instance
+
+        """
+
+        super(CarefulLRUCache, self).__init__()
+        self.__lock = Lock()
+        self.__cache = LRUDict(capacity)
+        self.__loader = loader
+        self.__loading = dict()
+        self.__tester = tester
+        self.__key = key
+
+    def clear(self, discard_loads=False):
+        
+        """Remove all cached values
+
+        This method removes all values from this cache. If
+        `discard_loads`, then the method also forces all currently
+        running load operations to fail with a `CacheAbandonedError`.
+        Note, that this method has no way of interrupting load
+        operations, so all pending operations will have to complete 
+        before the discard condition can be detected.
+        """
+
+        with self.__lock:
+            self.__cache.clear()
+            if discard_loads:
+                conditions = list()
+                keys = tuple(self.__loading.iterkeys())
+                for k in keys:
+                    placeholder = self.__loading.pop(k)
+                    if placeholder._state is loading:
+                        placeholder._state = discarded
+                        conditions.append(placeholder._condition)
+                while conditions:
+                    conditions.pop().notifyAll()
+                        
+    def load(self, key):
+
+        """Load a value 
+
+        Returns the value associated with `key`. If no
+        matching value is currently present in this cache,
+        or if the value present is considered "too old"
+        by the `tester` function, then a value is loaded via 
+        the cache's `loader` function.
+        """
+
+        loader, tester, keyfn = self.__loader, self.__tester, self.__key
+        kref = keyfn(key)
+
+        with self.__lock:
+            item = self.__cache.get(kref, missing)
+            if item is not missing:
+                if tester(item):
+                    return item
+                else:
+                    del self.__cache[kref]
+            placeholder = self.__loading.get(kref)
+            if placeholder is not None:
+                while placeholder._state is loading:
+                    placeholder._condition.wait()
+                if placeholder._state is failed:
+                    raise CacheLoadError(key, placeholder._value)
+                else:
+                    if placeholder._state is available:
+                        return placeholder._value
+                    else:
+                        assert placeholder._state is discarded
+                        raise CacheAbandonedError(key=key)
+                assert False, "this line should never be reached"
+            else:
+                placeholder = Placeholder(self.__lock)
+                self.__loading[kref] = placeholder
+                # The previous line was the point of no return.
+                # Reaching this point means, that we are the thread
+                # which has to do the actual loading. It also means,
+                # that we must never leave this method without properly
+                # cleaning up behind us.
+        try:
+            value = loader(key)
+        except:
+            with self.__lock:
+                if placeholder._state is loading:
+                    # We are still responsible for the placeholder.
+                    del self.__loading[kref]
+                    placeholder._value = sys.exc_info()
+                    placeholder._state = failed
+                    placeholder._condition.notifyAll()
+                    raise CacheLoadError(key, placeholder._value)
+                else:
+                    # Do not notify the condition variable, since
+                    # that should already have been done by whoever
+                    # changed the placeholder's state
+                    raise CacheAbandonedError(key=key, exc_info=sys.exc_info())
+        else:
+            with self.__lock:
+                if placeholder._state is loading:
+                    # We are still responsible for the placeholder.
+                    del self.__loading[kref]
+                    placeholder._value = value
+                    placeholder._state = available
+                    self.__cache[kref] = value
+                    placeholder._condition.notifyAll()
+                else:
+                    # Do not notify the condition variable, since
+                    # that should already have been done by whoever
+                    # changed the placeholder's state
+                    raise CacheAbandonedError(key=key, value=value)
+            return value
