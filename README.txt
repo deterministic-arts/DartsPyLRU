@@ -340,6 +340,13 @@ Note, that eviction is still based on LRU, not on the age test.
 Change Log
 ==========
 
+Version 0.5
+------------
+
+Added a "from __future__ import with_statement" for Python 2.5 compatibility.
+Note, that supporting py2.5 is not a real goal, and I did not test the code
+using that version.
+
 Version 0.4
 ------------
 
