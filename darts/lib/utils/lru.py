@@ -24,6 +24,8 @@
 """Trivial LRU-Dictionary implementation
 """
 
+from __future__ import with_statement
+
 import sys
 from threading import RLock, Lock, Condition, Thread
 
