@@ -28,6 +28,7 @@ from __future__ import with_statement
 
 import sys
 from threading import RLock, Lock, Condition, Thread
+from __future__ import with_statement
 
 __all__ = (
     'LRUDict', 'AutoLRUCache', 'CacheLoadError', 'CacheAbandonedError',
