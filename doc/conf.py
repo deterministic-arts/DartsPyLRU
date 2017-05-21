@@ -40,8 +40,8 @@ source_suffix = '.txt'
 master_doc = 'index'
 
 # General information about the project.
-project = u'dart.utils.lru'
-copyright = u'2010, Deterministic Arts'
+project = 'dart.utils.lru'
+copyright = '2010, Deterministic Arts'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -178,8 +178,8 @@ htmlhelp_basename = 'dartutilslrudoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'dartutilslru.tex', u'dart.utils.lru Documentation',
-   u'Deterministic Arts', 'manual'),
+  ('index', 'dartutilslru.tex', 'dart.utils.lru Documentation',
+   'Deterministic Arts', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -211,6 +211,6 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'dartutilslru', u'dart.utils.lru Documentation',
-     [u'Deterministic Arts'], 1)
+    ('index', 'dartutilslru', 'dart.utils.lru Documentation',
+     ['Deterministic Arts'], 1)
 ]

@@ -56,7 +56,7 @@ class AutoCacheThreadingTest(TestCase):
 
         iterations_per_thread = 1000
         number_of_threads = 100
-        key_range = range(4)
+        key_range = list(range(4))
 
         loads_lock = RLock()
         loads = dict()
@@ -92,7 +92,7 @@ class AutoCacheThreadingTest(TestCase):
             with start_lock:
                 while not start_now:
                     start_condition.wait()
-            for k in xrange(iterations_per_thread):
+            for k in range(iterations_per_thread):
                 for i in shuffled(key_range):
                     answer = cache.load(i)
                     self.assertEqual("R(%r)" % (i,), answer)
@@ -102,7 +102,7 @@ class AutoCacheThreadingTest(TestCase):
 
         with start_lock:
         
-            for k in xrange(number_of_threads):
+            for k in range(number_of_threads):
                 thr = Thread(target=reader)
                 thr.start()
 
@@ -124,7 +124,7 @@ class AutoCacheThreadingTest(TestCase):
         # Make sure, that all keys have actually been requested
         # at least once.
 
-        self.assertEqual(set(key_range), set(loads.iterkeys()))
+        self.assertEqual(set(key_range), set(loads.keys()))
 
         # The cache has a capacity such, that it can hold all
         # elements nominally ever requested by the readers. So,
@@ -132,7 +132,7 @@ class AutoCacheThreadingTest(TestCase):
         # once (due to the cache keeping track of what it is 
         # currently loading).
 
-        for key,count in loads.iteritems():
+        for key,count in loads.items():
             self.assertEqual(1, count)
             self.assertTrue(key in key_range)
 
